@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 
 // Use the same cookie settings when setting and clearing the auth cookie.
 export const getAuthCookieOptions = () => ({
-  httpOnly: true,
+  httpsOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000
