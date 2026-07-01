@@ -5,6 +5,10 @@ export const protect = async (req, res, next) => {
   // The JWT is stored in a cookie named token.
   const token = req.cookies.token;
 
+  // Debugging aid: log host/origin and whether the token cookie is present.
+  // This prints only the cookie key names to avoid leaking the token value.
+  console.log(`protect: host=${req.headers.host} origin=${req.headers.origin} cookies=${Object.keys(req.cookies)}`);
+
   if (!token) {
     return res.status(401).json({ message: "Not authorized, token missing" });
   }
