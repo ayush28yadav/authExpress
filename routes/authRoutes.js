@@ -1,104 +1,40 @@
 import express from "express";
-import bcrypt from "bcryptjs";
-
-import User from "../models/User.js";
-import protect from "../middleware/authMiddleware.js";
-import setTokenCookie from "../utils/setTokenCookie.js";
+import {
+  getAdminArea,
+  getCurrentUser,
+  getStudentArea,
+  getTeacherArea,
+  loginUser,
+  logoutUser,
+  signupUser,
+  updateProfile
+} from "../controllers/authController.js";
+import { authorizeRoles, protect } from "../middleware/authMiddleware.js";
+import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
-router.post("/signup", async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
+// Public auth routes.
+// The signup route accepts a profile image in the same request as the text fields.
+// upload.single("profileImage") tells multer to look for a file field named profileImage.
+router.post("/signup", upload.single("profileImage"), signupUser);
+router.post("/login", loginUser);
+router.post("/logout", logoutUser);
 
-    if (!name || !email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Name, email, and password are required" });
-    }
+// Logged-in user routes.
+// protect makes sure the user is authenticated before these routes can run.
+router.get("/me", protect, getCurrentUser);
+router.put("/profile", protect, upload.single("profileImage"), updateProfile);
 
-    const normalizedEmail = email.toLowerCase().trim();
-    const existingUser = await User.findOne({ email: normalizedEmail });
-
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await User.create({
-      name,
-      email: normalizedEmail,
-      password: hashedPassword
-    });
-
-    setTokenCookie(res, user._id);
-
-    res.status(201).json({
-      message: "User created successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-router.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid email or password" });
-    }
-
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordCorrect) {
-      return res.status(400).json({ message: "Invalid email or password" });
-    }
-
-    setTokenCookie(res, user._id);
-
-    res.json({
-      message: "Login successful",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-router.post("/logout", (req, res) => {
-  res.cookie("token", "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    expires: new Date(0)
-  });
-
-  res.json({ message: "Logged out successfully" });
-});
-
-router.get("/me", protect, async (req, res) => {
-  res.json({
-    message: "Authenticated user",
-    user: req.user
-  });
-});
+// Role-based example routes.
+// These routes show how authorization middleware can protect parts of the app.
+router.get("/student-area", protect, getStudentArea);
+router.get(
+  "/teacher-area",
+  protect,
+  authorizeRoles("teacher", "admin"),
+  getTeacherArea
+);
+router.get("/admin-area", protect, authorizeRoles("admin"), getAdminArea);
 
 export default router;

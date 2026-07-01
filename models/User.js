@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    // Basic account fields.
     name: {
       type: String,
       required: true,
@@ -17,6 +18,27 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true
+    },
+    role: {
+      type: String,
+      enum: ["student", "teacher", "admin"],
+      default: "student"
+    },
+    bio: {
+      type: String,
+      default: "",
+      trim: true
+    },
+    // Store both the public image URL and Cloudinary id for easier updates.
+    profileImage: {
+      url: {
+        type: String,
+        default: ""
+      },
+      publicId: {
+        type: String,
+        default: ""
+      }
     }
   },
   {

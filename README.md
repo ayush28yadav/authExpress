@@ -1,190 +1,124 @@
-# Simple JWT Auth With Express and MongoDB
+# Auth Express Teaching Demo
 
-This project shows:
+This project now includes:
 
-- user signup
-- user login
-- JWT stored in an HTTP-only cookie
-- protected route with middleware
-- simple MongoDB operations: add, find, delete
+- JWT auth with HTTP-only cookies
+- controller-based Express routes
+- profile photo upload with `multer`
+- Cloudinary image hosting
+- role-based access control
+- a simple React frontend using `axios`
 
-## 1. Install
+## Backend setup
+
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-## 2. Add your environment variables
-
-Create a `.env` file and copy this:
+Create a `.env` file from `.env.example`:
 
 ```env
 PORT=5000
-MONGO_URI=mongodb+srv://your-username:your-password@cluster-name.mongodb.net/jwtAuthDemo?retryWrites=true&w=majority
+CLIENT_URL=http://localhost:5173
+MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=replace_this_with_a_long_random_secret
 NODE_ENV=development
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
-Use your MongoDB Atlas connection string in `MONGO_URI`.
-
-## 3. Run the server
+Start the backend:
 
 ```bash
 npm run dev
 ```
 
-or
+## Frontend setup
+
+Move into the React app:
 
 ```bash
-npm start
+cd client
 ```
 
-## 4. API endpoints
+Install dependencies:
 
-### Auth
-
-#### Signup
-
-`POST /api/auth/signup`
-
-```json
-{
-  "name": "Ayush",
-  "email": "ayush@example.com",
-  "password": "123456"
-}
+```bash
+npm install
 ```
 
-#### Login
+Create a `.env` file from `client/.env.example`:
 
-`POST /api/auth/login`
-
-```json
-{
-  "email": "ayush@example.com",
-  "password": "123456"
-}
+```env
+VITE_API_URL=http://localhost:5000
 ```
 
-#### Logout
+Start the frontend:
 
-`POST /api/auth/logout`
+```bash
+npm run dev
+```
 
-#### Get current user
+The React app runs on `http://localhost:5173`.
 
-`GET /api/auth/me`
+## Main backend routes
 
-This works only if the JWT cookie is present.
+### Auth routes
+
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `PUT /api/auth/profile`
+
+`PUT /api/auth/profile` accepts `multipart/form-data` with:
+
+- `name`
+- `bio`
+- `role`
+- `profileImage`
+
+### Role demo routes
+
+- `GET /api/auth/student-area`
+- `GET /api/auth/teacher-area`
+- `GET /api/auth/admin-area`
+
+Access rules:
+
+- `student-area`: any logged-in user
+- `teacher-area`: `teacher` or `admin`
+- `admin-area`: `admin` only
 
 ### Item routes
 
-These are protected routes. Login first so the cookie is set.
+- `POST /api/items`
+- `GET /api/items`
+- `GET /api/items/:id`
+- `DELETE /api/items/:id`
 
-#### Add item
+## Beginner notes
 
-`POST /api/items`
+- `multer` reads the uploaded image from the request body before the controller handles it.
+- The file is kept in memory first, then sent to Cloudinary, which is why the upload code feels a little more involved than a normal text form.
+- The auth flow is: client sends login/signup data -> backend validates it -> backend creates or finds the user -> a cookie is set -> the frontend uses that cookie for future requests.
+- The JWT is stored in a cookie named `token`.
+- `axios` uses `withCredentials: true`, which helps avoid common cookie/CORS mistakes.
+- CORS is configured in the backend using `CLIENT_URL`.
 
-```json
-{
-  "title": "Learn JWT",
-  "description": "Store token in cookie"
-}
-```
+## How the photo upload works
 
-#### Find all items
+1. The frontend sends a form that includes text fields and a file.
+2. The route uses `upload.single("profileImage")`, which tells multer to look for a file field named `profileImage`.
+3. Multer reads that file and makes it available to the controller as `req.file`.
+4. The controller sends the file to Cloudinary and stores the returned image URL in the database.
+5. The user can later update or replace that photo using the same flow.
 
-`GET /api/items`
+## Note
 
-#### Find one item
+This project allows users to choose a role from the frontend so the protected routes are easy to test.
 
-`GET /api/items/:id`
-
-#### Delete item
-
-`DELETE /api/items/:id`
-
-## 5. Mongo operations used in this project
-
-This project uses Mongoose, which is the most common way to work with MongoDB in Express apps.
-
-### Add data
-
-```js
-const user = await User.create({
-  name,
-  email,
-  password: hashedPassword
-});
-
-const item = await Item.create({
-  title,
-  description,
-  user: req.user._id
-});
-```
-
-### Find one document
-
-```js
-const user = await User.findOne({ email });
-```
-
-```js
-const item = await Item.findOne({
-  _id: req.params.id,
-  user: req.user._id
-});
-```
-
-### Find many documents
-
-```js
-const items = await Item.find({ user: req.user._id });
-```
-
-### Delete one document
-
-```js
-const item = await Item.findOneAndDelete({
-  _id: req.params.id,
-  user: req.user._id
-});
-```
-
-## 6. Basic MongoDB shell syntax
-
-If you want the plain MongoDB syntax also, here are the basic commands:
-
-### Insert
-
-```js
-db.items.insertOne({
-  title: "Learn JWT",
-  description: "Store token in cookie"
-});
-```
-
-### Find all
-
-```js
-db.items.find({});
-```
-
-### Find one
-
-```js
-db.items.findOne({ title: "Learn JWT" });
-```
-
-### Delete one
-
-```js
-db.items.deleteOne({ title: "Learn JWT" });
-```
-
-## 7. Notes
-
-- JWT is stored in a cookie named `token`
-- the cookie is `httpOnly`, so JavaScript in the browser cannot read it
-- `secure` becomes `true` in production
-- each item belongs to the logged-in user
+In a real production app, sensitive roles like `admin` should not be assigned directly by normal users.
